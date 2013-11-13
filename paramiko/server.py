@@ -245,6 +245,21 @@ class ServerInterface (object):
         """
         return AUTH_FAILED
     
+    def check_auth_gssapi_with_mic(self):
+        '''
+        This is just a dummy function, because the whole GSSAPI authentication is done in AuthHandler.
+        You don't have to overwrite this in your SSH server.
+        '''
+        pass
+    
+    def enable_auth_gssapi_with_mic(self):
+        '''
+        Overwrite this function in your SSH server to enable GSSAPI authentication
+        '''
+        GSSAPIAuthentication = False
+        GSSAPICleanupCredentials = True
+        return GSSAPIAuthentication, GSSAPICleanupCredentials
+    
     def check_auth_interactive_response(self, responses):
         """
         Continue or finish an interactive authentication challenge, if

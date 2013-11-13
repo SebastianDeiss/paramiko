@@ -231,7 +231,7 @@ class SSHClient (object):
         """
         self._policy = policy
 
-    def connect(self, hostname, port=SSH_PORT, username=None, password=None, pkey=None,
+    def connect(self, hostname, port=SSH_PORT, username=None, password=None, pkey=None, gss_auth=False, gss_deleg_creds=True,
                 key_filename=None, timeout=None, allow_agent=True, look_for_keys=True,
                 compress=False, sock=None):
         """
@@ -336,10 +336,10 @@ class SSHClient (object):
         if key_filename is None:
             key_filenames = []
         elif isinstance(key_filename, (str, unicode)):
-            key_filenames = [ key_filename ]
+            key_filenames = [key_filename]
         else:
             key_filenames = key_filename
-        self._auth(username, password, pkey, key_filenames, allow_agent, look_for_keys)
+        self._auth(username, password, pkey, key_filenames, allow_agent, look_for_keys, gss_auth, gss_deleg_creds, hostname)
 
     def close(self):
         """
@@ -429,7 +429,7 @@ class SSHClient (object):
         """
         return self._transport
 
-    def _auth(self, username, password, pkey, key_filenames, allow_agent, look_for_keys):
+    def _auth(self, username, password, pkey, key_filenames, allow_agent, look_for_keys, gss_auth, gss_deleg_creds, hostname):
         """
         Try, in order:
 
@@ -527,6 +527,13 @@ class SSHClient (object):
                 saved_exception = e
         elif two_factor:
             raise SSHException('Two-factor authentication requires a password')
+
+	if gss_auth is True:
+	    try:
+                self._transport.auth_gssapi_with_mic(username, hostname, gss_deleg_creds)
+		return
+            except SSHException, e:
+                saved_exception = e
 
         # if we got an auth-failed exception earlier, re-raise it
         if saved_exception is not None:

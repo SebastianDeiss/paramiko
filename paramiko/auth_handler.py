@@ -32,6 +32,7 @@ from paramiko.message import Message
 from paramiko.ssh_exception import SSHException, AuthenticationException, \
     BadAuthenticationType, PartialAuthentication
 from paramiko.server import InteractiveQuery
+from paramiko.ssh_gss import SSH_GSSAuth
 
 
 class AuthHandler (object):
@@ -52,6 +53,9 @@ class AuthHandler (object):
         # for server mode:
         self.auth_username = None
         self.auth_fail_count = 0
+        # for GSSAPI
+        self.hostname = None
+        self.gss_deleg_creds = True
         
     def is_authenticated(self):
         return self.authenticated
@@ -105,6 +109,20 @@ class AuthHandler (object):
             self.username = username
             self.interactive_handler = handler
             self.submethods = submethods
+            self._request_auth()
+        finally:
+            self.transport.lock.release()
+
+    def auth_gssapi_with_mic(self, username, hostname, gss_deleg_creds, event):
+        print "[AuthHandler] auth_gssapi_with_mic(self, username, hostname, gss_cleanup, event)"
+        self.transport.lock.acquire()
+        try:
+            self.auth_event = event
+            self.auth_method = 'gssapi-with-mic'
+            self.username = username
+            self.hostname = hostname
+            self.gss_deleg_creds = gss_deleg_creds
+            print "[AuthHandler] Trying Authentication with GSSAPI..."
             self._request_auth()
         finally:
             self.transport.lock.release()
@@ -211,6 +229,34 @@ class AuthHandler (object):
             elif self.auth_method == 'keyboard-interactive':
                 m.add_string('')
                 m.add_string(self.submethods)
+            elif self.auth_method == "gssapi-with-mic":
+                sshgss = SSH_GSSAuth(self.auth_method, self.gss_deleg_creds)
+                m.add_bytes(sshgss.ssh_gss_oids)
+                self.transport._send_message(m)
+                ptype, m = self.transport.packetizer.read_message()
+                if ptype == MSG_USERAUTH_GSSAPI_RESPONSE:
+                    mech = m.get_string()
+                    m = Message()
+                    m.add_byte(chr(MSG_USERAUTH_GSSAPI_TOKEN))
+                    m.add_string(sshgss.ssh_init_sec_context(self.username,
+                                                             self.hostname, mech))
+                    self.transport._send_message(m)
+                    ptype, m = self.transport.packetizer.read_message()
+                    if ptype == MSG_USERAUTH_GSSAPI_TOKEN:
+                        srv_token = m.get_string()
+                        next_token = sshgss.ssh_init_sec_context(self.username,
+                                                                 self.hostname, mech, srv_token)
+                        if next_token is not None:
+                            raise SSHException("Received Invalid Server token")
+                    else:
+                        raise SSHException("Protokoll Error!!!\nReceived Package: %s" %MSG_NAMES[ptype])
+                    m = Message()
+                    m.add_byte(chr(MSG_USERAUTH_GSSAPI_MIC))
+                    m.add_string(sshgss.ssh_get_mic(self.transport.session_id))
+                elif ptype == MSG_USERAUTH_GSSAPI_ERRTOK:
+                    raise SSHException("Server returned an error token")
+                else:
+                    raise SSHException("Received Package: %s" %MSG_NAMES[ptype])
             elif self.auth_method == 'none':
                 pass
             else:
@@ -253,7 +299,7 @@ class AuthHandler (object):
             m.add_string(p[0])
             m.add_boolean(p[1])
         self.transport._send_message(m)
- 
+
     def _parse_userauth_request(self, m):
         if not self.transport.server_mode:
             # er, uh... what?
@@ -343,6 +389,42 @@ class AuthHandler (object):
                 # make interactive query instead of response
                 self._interactive_query(result)
                 return
+        elif method == "gssapi-with-mic":
+            gss_auth, __ = self.transport.server_object.enable_auth_gssapi_with_mic()
+            if not gss_auth:
+                result = AUTH_FAILED
+            sshgss = SSH_GSSAuth(method)
+            # check OIDs
+            '''
+            OpenSSH sends just one OID. It's the Kerveros V5 OID and that's the only OID we support.
+            '''
+            desired_mech = m.get_string()
+            supported_mech = sshgss.ssh_gss_oids()
+            if desired_mech != supported_mech:
+                self._disconnect_no_more_auth()
+            m = Message()
+            m.add_byte(chr(MSG_USERAUTH_GSSAPI_RESPONSE))
+            m.add_bytes(supported_mech)
+            self.transport._send_message(m)
+            # verify the client token
+            client_token = m.get_string()
+            token = sshgss.ssh_accept_sec_context(self.auth_username, client_token)
+            if token is not None:
+                m = Message()
+                m.add_byte(chr(MSG_USERAUTH_GSSAPI_TOKEN))
+                m.add_string(token)
+                self.transport._send_message(m)
+            # check MIC
+            ptype, m = self.transport.packetizer.read_message()
+            if ptype == MSG_USERAUTH_GSSAPI_MIC:
+                mic_token = m.get_string()
+                retval = sshgss.ssh_check_mic(mic_token, self.transport.session_id, self.auth_username)
+                if retval == 0:
+                    result = AUTH_SUCCESSFUL
+                else:
+                    result = AUTH_FAILED
+            else:
+                result = AUTH_FAILED
         else:
             result = self.transport.server_object.check_auth_none(username)
         # okay, send result

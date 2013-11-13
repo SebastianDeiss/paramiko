@@ -967,11 +967,12 @@ class Transport (threading.Thread):
             self.lock.release()
         return chan
 
-    def connect(self, hostkey=None, username='', password=None, pkey=None):
+    def connect(self, hostkey=None, username='', password=None, pkey=None,
+                hostname=None, gss_auth=False, gss_deleg_creds=True):
         """
         Negotiate an SSH2 session, and optionally verify the server's host key
-        and authenticate using a password or private key.  This is a shortcut
-        for L{start_client}, L{get_remote_server_key}, and
+        and authenticate using a password, private key or GSSAPI.
+        This is a shortcut for L{start_client}, L{get_remote_server_key}, and
         L{Transport.auth_password} or L{Transport.auth_publickey}.  Use those
         methods if you want more control.
 
@@ -997,6 +998,12 @@ class Transport (threading.Thread):
         @param pkey: a private key to use for authentication, if you want to
             use private key authentication; otherwise C{None}.
         @type pkey: L{PKey<pkey.PKey>}
+        @param hostname: The host to authenticate to
+        @type hostname: str
+        @param gss_auth: Enable or Disable GSSAPI Authentication
+        @type gss_auth: bool
+        @param gss_deleg_creds: Use delegated credentails with GSSAPI
+        @type gss_deleg_cred: bool
 
         @raise SSHException: if the SSH2 negotiation fails, the host key
             supplied by the server is incorrect, or authentication fails.
@@ -1016,13 +1023,16 @@ class Transport (threading.Thread):
                 raise SSHException('Bad host key from server')
             self._log(DEBUG, 'Host key verified (%s)' % hostkey.get_name())
 
-        if (pkey is not None) or (password is not None):
+        if (pkey is not None) or (password is not None) or (gss_auth == True):
             if password is not None:
                 self._log(DEBUG, 'Attempting password auth...')
                 self.auth_password(username, password)
-            else:
+            elif pkey is not None:
                 self._log(DEBUG, 'Attempting public-key auth...')
                 self.auth_publickey(username, pkey)
+            else:
+                self._log(DEBUG, 'Attempting GSSAPI auth...')
+                self.auth_gssapi_with_mic(username, hostname, gss_deleg_creds)
 
         return
 
@@ -1303,6 +1313,17 @@ class Transport (threading.Thread):
         my_event = threading.Event()
         self.auth_handler = AuthHandler(self)
         self.auth_handler.auth_interactive(username, handler, my_event, submethods)
+        return self.auth_handler.wait_for_response(my_event)
+
+    def auth_gssapi_with_mic(self, username, hostname, gss_deleg_creds):
+        print "[Transport] auth mechanism: gssapi-with-mic"
+        if (not self.active) or (not self.initial_kex_done):
+            # we should never try to authenticate unless we're on a secure link
+            raise SSHException('No existing session')
+        my_event = threading.Event()
+        self.auth_handler = AuthHandler(self)
+        self.auth_handler.auth_gssapi_with_mic(username, hostname, gss_deleg_creds, my_event)
+        print "[Transport] GSS Auth send. Waiting for response..."
         return self.auth_handler.wait_for_response(my_event)
 
     def set_log_channel(self, name):
