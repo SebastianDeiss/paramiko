@@ -30,7 +30,6 @@ import gssapi
 from paramiko.common import *
 from paramiko.ssh_exception import SSHException
 # for server mode
-import platform
 from subprocess import call
 import string
 import random
@@ -103,13 +102,13 @@ class SSH_GSSAuth(object):
         ctx.flags = self._gss_flags
         mech, __ = decoder.decode(desired_mech)
         if mech.__str__() != self._krb5_mech:
-            raise SSHException("Unsupported mechanism OID received.")
+            raise SSHException("Unsupported mechanism OID.")
         else:
             krb5_mech = gssapi.OID.mech_from_string(mech.__str__())
         token = None
         if recv_token is None:
-            self._gss_ctxt = gssapi.InitContext(targ_name, 0, krb5_mech,
-                                                ctx.flags)
+            self._gss_ctxt = gssapi.InitContext(target_name=targ_name,
+                                                mech_type=krb5_mech, req_flags=ctx.flags)
             token = self._gss_ctxt.step(token)
         else:
             token = self._gss_ctxt.step(recv_token)
@@ -148,32 +147,21 @@ class SSH_GSSAuth(object):
 
     '''
     Save the Client token in a file and set this file to the KRB5CCNAME environment variable
-    This is used by the SSH server if the client has requested credential delegating
+    This is used by the SSH server if credentials are delegated
     (server mode)
     '''
     def save_client_creds(self, client_token):
-        if platform.system() == "Windows":
-            # use a random string to make the filename unique
-            cc_file = "C:\krb5cc_1773_" + self._random_string()
-            file_handler = open(cc_file)
-            file_handler.write(client_token)
-            file_handler.close()
-            return cc_file
-        else:
             cc_file = "/tmp/krb5cc_1773_" + self._random_string()
             file_handler = open(cc_file)
             file_handler.write(client_token)
             file_handler.close()
-            '''
-            TODO: check witch shell the user uses
-            '''
             call("export KRB5_CCNAME=" + cc_file)
             return cc_file
 
     # Internals
     #----------------------------------------------------------------------
     '''
-    Convert a 32 bit Interger to it's byte value
+    Create a 32 bit unsigned integer
     '''
     def _make_uint32(self, integer):
         b = ["", "", "", ""]
@@ -205,10 +193,3 @@ class SSH_GSSAuth(object):
     def _random_string(self, chars=string.ascii_uppercase +
                        string.ascii_lowercase, length=10):
         return ''.join(random.choice(chars) for x in range(length))
-
-
-class SSH_SSPIAuth(object):
-    '''
-    Implementation of the SSPI Authentication for SSH2
-    '''
-    pass
