@@ -74,7 +74,7 @@ try:
     if not UseGSSAPI:
         client.connect(hostname, Port, username, password)
     else:
-        # SSPI works with the FQDN of the target host only
+        # SSPI works only with the FQDN of the target host
         hostname = socket.getfqdn(hostname)
         client.connect(hostname, Port, username, gss_auth=UseGSSAPI,
                        gss_kex=DoGSSAPIKeyExchange)
