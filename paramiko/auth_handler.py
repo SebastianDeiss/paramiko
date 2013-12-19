@@ -469,7 +469,7 @@ class AuthHandler (object):
             '''
             RFC 4462 says we are not required to implement GSS-API error
             messages.
-            @see: U{RFC 4462 Section 2 <www.ietf.org/rfc/rfc4462.txt>}    FIXME Section 2.1 or 2.2
+            @see: U{RFC 4462 Section 3.8 <www.ietf.org/rfc/rfc4462.txt>}
             '''
             while True:
                 m = Message()
@@ -480,9 +480,14 @@ class AuthHandler (object):
                 if ptype == MSG_USERAUTH_GSSAPI_TOKEN:
                     client_token = m.get_string()
                     # use the client token as input to establish a secure context
-                    token = sshgss.ssh_accept_sec_context(self.gss_host,
-                                                          client_token,
-                                                          username)
+                    try:
+                        token = sshgss.ssh_accept_sec_context(self.gss_host,
+                                                              client_token,
+                                                              username)
+                    except Exception:
+                        result = AUTH_FAILED
+                        self._send_auth_result(username, method, result)
+                        raise
                     if token is not None:
                         m = Message()
                         m.add_byte(chr(MSG_USERAUTH_GSSAPI_TOKEN))
@@ -496,9 +501,14 @@ class AuthHandler (object):
                 if ptype == MSG_USERAUTH_GSSAPI_MIC:
                     break
             mic_token = m.get_string()
-            retval = sshgss.ssh_check_mic(mic_token,
-                                          self.transport.session_id,
-                                          username)
+            try:
+                retval = sshgss.ssh_check_mic(mic_token,
+                                              self.transport.session_id,
+                                              username)
+            except Exception:
+                result = AUTH_FAILED
+                self._send_auth_result(username, method, result)
+                raise
             if retval == 0:
                 '''
                  @todo: Implement client credential saving
@@ -517,9 +527,14 @@ class AuthHandler (object):
                 # If there is no valid context, we reject the authentication
                 result = AUTH_FAILED
                 self._send_auth_result(username, method, result)
-            retval = sshgss.ssh_check_mic(mic_token,
-                                          self.transport.session_id,
-                                          self.auth_username)
+            try:
+                retval = sshgss.ssh_check_mic(mic_token,
+                                              self.transport.session_id,
+                                              self.auth_username)
+            except Exception:
+                result = AUTH_FAILED
+                self._send_auth_result(username, method, result)
+                raise
             if retval == 0:
                 result = AUTH_SUCCESSFUL
                 self.transport.server_object.check_auth_gssapi_keyex(username,
