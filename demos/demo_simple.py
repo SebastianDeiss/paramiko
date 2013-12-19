@@ -36,7 +36,7 @@ paramiko.util.log_to_file('demo_simple.log')
 # Paramiko client configuration
 UseGSSAPI = True             # enable GSS-API / SSPI authentication
 DoGSSAPIKeyExchange = True
-Port = 2200
+Port = 22
 
 # get hostname
 username = ''
