@@ -94,8 +94,10 @@ class KexGSSGroup1(object):
         m.add_string(self.kexgss.ssh_init_sec_context(target=self.gss_host))
         m.add_mpint(self.e)
         self.transport._send_message(m)
-        self.transport._expect_packet(MSG_KEXGSS_HOSTKEY, MSG_KEXGSS_CONTINUE, \
-                                      MSG_KEXGSS_COMPLETE)
+        self.transport._expect_packet(MSG_KEXGSS_HOSTKEY,
+                                      MSG_KEXGSS_CONTINUE,
+                                      MSG_KEXGSS_COMPLETE,
+                                      MSG_KEXGSS_ERROR)
 
     def parse_next(self, ptype, m):
         '''
@@ -149,7 +151,7 @@ class KexGSSGroup1(object):
         self.transport.host_key = host_key
         sig = m.get_string()
         self.transport._verify_key(host_key, sig)
-        self.transport._expect_packet(MSG_KEXGSS_CONTINUE,\
+        self.transport._expect_packet(MSG_KEXGSS_CONTINUE,
                                       MSG_KEXGSS_COMPLETE)
 
     def _parse_kexgss_continue(self, m):
@@ -166,8 +168,9 @@ class KexGSSGroup1(object):
             m.add_string(self.kexgss.ssh_init_sec_context(target=self.gss_host,
                                                         recv_token=srv_token))
             self.transport.send_message(m)
-            self.transport._expect_packet(MSG_KEXGSS_CONTINUE,\
-                                          MSG_KEXGSS_COMPLETE)
+            self.transport._expect_packet(MSG_KEXGSS_CONTINUE,
+                                          MSG_KEXGSS_COMPLETE,
+                                          MSG_KEXGSS_ERROR)
         else:
             pass
 
@@ -258,8 +261,9 @@ class KexGSSGroup1(object):
             m.add_byte(chr(MSG_KEXGSS_CONTINUE))
             m.add_string(srv_token)
             self.transport._send_message(m)
-            self.transport._expect_packet(MSG_KEXGSS_CONTINUE,\
-                                          MSG_KEXGSS_COMPLETE)
+            self.transport._expect_packet(MSG_KEXGSS_CONTINUE,
+                                          MSG_KEXGSS_COMPLETE,
+                                          MSG_KEXGSS_ERROR)
 
     def _parse_kexgss_error(self, m):
         '''
@@ -432,8 +436,10 @@ class KexGSSGex(object):
         m.add_string(self.kexgss.ssh_init_sec_context(target=self.gss_host))
         m.add_mpint(self.e)
         self.transport._send_message(m)
-        self.transport._expect_packet(MSG_KEXGSS_HOSTKEY, MSG_KEXGSS_CONTINUE, \
-                                      MSG_KEXGSS_COMPLETE)
+        self.transport._expect_packet(MSG_KEXGSS_HOSTKEY,
+                                      MSG_KEXGSS_CONTINUE,
+                                      MSG_KEXGSS_COMPLETE,
+                                      MSG_KEXGSS_ERROR)
 
     def _parse_kexgss_gex_init(self, m):
         '''
@@ -486,8 +492,9 @@ class KexGSSGex(object):
             m.add_byte(chr(MSG_KEXGSS_CONTINUE))
             m.add_string(srv_token)
             self.transport._send_message(m)
-            self.transport._expect_packet(MSG_KEXGSS_CONTINUE,\
-                                          MSG_KEXGSS_COMPLETE)
+            self.transport._expect_packet(MSG_KEXGSS_CONTINUE,
+                                          MSG_KEXGSS_COMPLETE,
+                                          MSG_KEXGSS_ERROR)
 
     def _parse_kexgss_hostkey(self, m):
         '''
@@ -501,7 +508,7 @@ class KexGSSGex(object):
         self.transport.host_key = host_key
         sig = m.get_string()
         self.transport._verify_key(host_key, sig)
-        self.transport._expect_packet(MSG_KEXGSS_CONTINUE, \
+        self.transport._expect_packet(MSG_KEXGSS_CONTINUE,
                                       MSG_KEXGSS_COMPLETE)
 
     def _parse_kexgss_continue(self, m):
@@ -518,8 +525,9 @@ class KexGSSGex(object):
             m.add_string(self.kexgss.ssh_init_sec_context(target=self.gss_host,
                                                         recv_token=srv_token))
             self.transport.send_message(m)
-            self.transport._expect_packet(MSG_KEXGSS_CONTINUE, \
-                                          MSG_KEXGSS_COMPLETE)
+            self.transport._expect_packet(MSG_KEXGSS_CONTINUE,
+                                          MSG_KEXGSS_COMPLETE,
+                                          MSG_KEXGSS_ERROR)
         else:
             pass
 

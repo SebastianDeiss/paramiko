@@ -374,8 +374,8 @@ class AuthHandler (object):
             self._disconnect_no_more_auth()
             return
         self.auth_username = username
-        # check if GSSAPI authentication is enabled
-        gss_auth, gss_kex = self.transport.server_object.enable_gssapi()
+        # check if GSS-API authentication is enabled
+        gss_auth = self.transport.server_object.enable_auth_gssapi()
 
         if method == 'none':
             result = self.transport.server_object.check_auth_none(username)
@@ -514,11 +514,12 @@ class AuthHandler (object):
             mic_token = m.get_string()
             sshgss = self.transport.kexgss_ctxt
             if sshgss is None:
+                # If there is no valid context, we reject the authentication
                 result = AUTH_FAILED
                 self._send_auth_result(username, method, result)
-                retval = sshgss.ssh_check_mic(mic_token,
-                                              self.transport.session_id,
-                                              self.auth_username)
+            retval = sshgss.ssh_check_mic(mic_token,
+                                          self.transport.session_id,
+                                          self.auth_username)
             if retval == 0:
                 result = AUTH_SUCCESSFUL
                 self.transport.server_object.check_auth_gssapi_keyex(username,

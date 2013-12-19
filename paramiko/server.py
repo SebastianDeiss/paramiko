@@ -311,7 +311,7 @@ class ServerInterface (object):
             return AUTH_SUCCESSFUL
         return AUTH_FAILED
 
-    def enable_gssapi(self):
+    def enable_auth_gssapi(self):
         '''
         Overwrite this function in your SSH server to enable GSSAPI
         authentication.
@@ -323,8 +323,7 @@ class ServerInterface (object):
         '''
         UseGSSAPI = False
         GSSAPICleanupCredentials = False
-        GSSAPIKeyExchange = False
-        return (UseGSSAPI, GSSAPIKeyExchange)
+        return UseGSSAPI
 
     def check_auth_interactive_response(self, responses):
         """

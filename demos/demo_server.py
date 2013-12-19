@@ -91,11 +91,10 @@ class Server (paramiko.ServerInterface):
             return paramiko.AUTH_SUCCESSFUL
         return paramiko.AUTH_FAILED
 
-    def enable_gssapi(self):
+    def enable_auth_gssapi(self):
         UseGSSAPI = True
         GSSAPICleanupCredentials = False
-        GSSAPIKeyExchange = True
-        return (UseGSSAPI, GSSAPIKeyExchange)
+        return UseGSSAPI
 
     def get_allowed_auths(self, username):
         return 'gssapi-keyex, gssapi-with-mic, password, publickey'
@@ -108,6 +107,8 @@ class Server (paramiko.ServerInterface):
                                   pixelheight, modes):
         return True
 
+
+DoGSSAPIKeyExchange = True
 
 # now connect
 try:
@@ -131,8 +132,8 @@ except Exception, e:
 print 'Got a connection!'
 
 try:
-    t = paramiko.Transport(client, gss_kex=True)
-    t.set_gss_host(socket.getfqdn(''))
+    t = paramiko.Transport(client, gss_kex=DoGSSAPIKeyExchange)
+    t.set_gss_host(socket.getfqdn(""))
     try:
         t.load_server_moduli()
     except:
