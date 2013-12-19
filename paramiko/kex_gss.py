@@ -114,6 +114,8 @@ class KexGSSGroup1(object):
             return self._parse_kexgss_continue(m)
         elif not self.transport.server_mode and (ptype == MSG_KEXGSS_COMPLETE):
             return self._parse_kexgss_complete(m)
+        elif ptype == MSG_KEXGSS_ERROR:
+            return self._parse_kexgss_error(m)
         raise SSHException('GSS KexGroup1 asked to handle packet type %d'
                            % ptype)
 
@@ -259,6 +261,27 @@ class KexGSSGroup1(object):
             self.transport._expect_packet(MSG_KEXGSS_CONTINUE,\
                                           MSG_KEXGSS_COMPLETE)
 
+    def _parse_kexgss_error(self, m):
+        '''
+        Parse the SSH2_MSG_KEXGSS_ERROR message (client mode).
+        The server may send a GSS-API error message. if it does, we display
+        the error by throwing an exception (client mode).
+
+        @param m: The content of the SSH2_MSG_KEXGSS_ERROR message
+        @type m: L{Message}
+        @raise SSHException: Contains GSS-API major and minor status as well as
+                             the error message and the language tag of the
+                             message
+        '''
+        maj_status = m.get_int()
+        min_status = m.get_int()
+        err_msg = m.get_string()
+        lang_tag = m.get_string()   # we don't care about the language!
+        raise SSHException("GSS-API Error:\nMajor Status: %s\nMinor Status: %s\
+                            \nError Message: %s\n") % (str(maj_status),
+                                                       str(min_status),
+                                                       err_msg)
+
 
 class KexGSSGex(object):
     '''
@@ -322,6 +345,8 @@ class KexGSSGex(object):
             return self._parse_kexgss_continue(m)
         elif ptype == MSG_KEXGSS_COMPLETE:
             return self._parse_kexgss_complete(m)
+        elif ptype == MSG_KEXGSS_ERROR:
+            return self._parse_kexgss_error(m)
         raise SSHException('KexGex asked to handle packet type %d' % ptype)
 
     # ##  internals...
@@ -547,6 +572,27 @@ class KexGSSGex(object):
             self.kexgss.ssh_check_mic(mic_token,
                                       self.transport.session_id)
         self.transport._activate_outbound()
+
+    def _parse_kexgss_error(self, m):
+        '''
+        Parse the SSH2_MSG_KEXGSS_ERROR message (client mode).
+        The server may send a GSS-API error message. if it does, we display
+        the error by throwing an exception (client mode).
+
+        @param m: The content of the SSH2_MSG_KEXGSS_ERROR message
+        @type m: L{Message}
+        @raise SSHException: Contains GSS-API major and minor status as well as
+                             the error message and the language tag of the
+                             message
+        '''
+        maj_status = m.get_int()
+        min_status = m.get_int()
+        err_msg = m.get_string()
+        lang_tag = m.get_string()   # we don't care about the language!
+        raise SSHException("GSS-API Error:\nMajor Status: %s\nMinor Status: %s\
+                            \nError Message: %s\n") % (str(maj_status),
+                                                       str(min_status),
+                                                       err_msg)
 
 
 class NullHostKey(object):

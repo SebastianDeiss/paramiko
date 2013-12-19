@@ -289,6 +289,16 @@ class AuthHandler (object):
                     @see: U{RFC 4462 Section 3.8<www.ietf.org/rfc/rfc4462.txt>}
                     '''
                     raise SSHException("Server returned an error token")
+                elif ptype == MSG_USERAUTH_GSSAPI_ERROR:
+                    maj_status = m.get_int()
+                    min_status = m.get_int()
+                    err_msg = m.get_string()
+                    lang_tag = m.get_string()  # we don't care!
+                    raise SSHException("GSS-API Error:\nMajor Status: %s\n\
+                                        Minor Status: %s\ \nError Message:\
+                                         %s\n") % (str(maj_status),
+                                                   str(min_status),
+                                                   err_msg)
                 else:
                     raise SSHException("Received Package: %s" % MSG_NAMES[ptype])
             elif self.auth_method == 'gssapi-keyex' and\
@@ -467,16 +477,20 @@ class AuthHandler (object):
                 m.add_bytes(supported_mech)
                 self.transport._send_message(m)
                 ptype, m = self.transport.packetizer.read_message()
-                client_token = m.get_string()
-                # use the client token as input to establish a secure context
-                token = sshgss.ssh_accept_sec_context(self.gss_host,
-                                                      client_token,
-                                                      username)
-                if token is not None:
-                    m = Message()
-                    m.add_byte(chr(MSG_USERAUTH_GSSAPI_TOKEN))
-                    m.add_string(token)
-                    self.transport._send_message(m)
+                if ptype == MSG_USERAUTH_GSSAPI_TOKEN:
+                    client_token = m.get_string()
+                    # use the client token as input to establish a secure context
+                    token = sshgss.ssh_accept_sec_context(self.gss_host,
+                                                          client_token,
+                                                          username)
+                    if token is not None:
+                        m = Message()
+                        m.add_byte(chr(MSG_USERAUTH_GSSAPI_TOKEN))
+                        m.add_string(token)
+                        self.transport._send_message(m)
+                else:
+                    raise SSHException("Client asked to handle paket %s"
+                                       %MSG_NAMES[ptype])
                 # check MIC
                 ptype, m = self.transport.packetizer.read_message()
                 if ptype == MSG_USERAUTH_GSSAPI_MIC:
@@ -497,15 +511,14 @@ class AuthHandler (object):
             else:
                 result = AUTH_FAILED
         elif method == "gssapi-keyex" and gss_auth:
-            print "OK"
             mic_token = m.get_string()
             sshgss = self.transport.kexgss_ctxt
             if sshgss is None:
                 result = AUTH_FAILED
                 self._send_auth_result(username, method, result)
-            retval = sshgss.ssh_check_mic(mic_token,
-                                          self.transport.session_id,
-                                          self.auth_username)
+                retval = sshgss.ssh_check_mic(mic_token,
+                                              self.transport.session_id,
+                                              self.auth_username)
             if retval == 0:
                 result = AUTH_SUCCESSFUL
                 self.transport.server_object.check_auth_gssapi_keyex(username,
