@@ -69,17 +69,36 @@ class Server (paramiko.ServerInterface):
     def check_auth_gssapi_with_mic(self, username,
                                    gss_authenticated=paramiko.AUTH_FAILED,
                                    cc_file=None):
+        '''
+        @note: We are just checking in L{AuthHandler} that the given user is
+               a valid krb5 principal!
+               We don't check if the krb5 principal is allowed to log in on
+               the server, because there is no way to do that in python. So
+               if you develop your own SSH server with paramiko for a certain
+               platform like Linux, you should call C{krb5_kuserok()} in your
+               local kerberos library to make sure that the krb5_principal has
+               an account on the server and is allowed to log in as a user.
+        @see: U{krb5_kuserok() man page <http://www.unix.com/man-page/all/3/krb5_kuserok/>}
+        '''
         if gss_authenticated == paramiko.AUTH_SUCCESSFUL:
             return paramiko.AUTH_SUCCESSFUL
         return paramiko.AUTH_FAILED
 
-    def enable_auth_gssapi_with_mic(self):
+    def check_auth_gssapi_keyex(self, username,
+                                gss_authenticated=paramiko.AUTH_FAILED,
+                                cc_file=None):
+        if gss_authenticated == paramiko.AUTH_SUCCESSFUL:
+            return paramiko.AUTH_SUCCESSFUL
+        return paramiko.AUTH_FAILED
+
+    def enable_gssapi(self):
         UseGSSAPI = True
-        GSSAPICleanupCredentials = True
-        return UseGSSAPI
+        GSSAPICleanupCredentials = False
+        GSSAPIKeyExchange = True
+        return (UseGSSAPI, GSSAPIKeyExchange)
 
     def get_allowed_auths(self, username):
-        return 'gssapi-with-mic, password,publickey'
+        return 'gssapi-keyex, gssapi-with-mic, password, publickey'
 
     def check_channel_shell_request(self, channel):
         self.event.set()
@@ -112,7 +131,8 @@ except Exception, e:
 print 'Got a connection!'
 
 try:
-    t = paramiko.Transport(client)
+    t = paramiko.Transport(client, gss_kex=True)
+    t.set_gss_host(socket.getfqdn(''))
     try:
         t.load_server_moduli()
     except:

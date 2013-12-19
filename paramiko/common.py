@@ -23,8 +23,7 @@ Common constants and global variables.
 MSG_DISCONNECT, MSG_IGNORE, MSG_UNIMPLEMENTED, MSG_DEBUG, MSG_SERVICE_REQUEST, \
     MSG_SERVICE_ACCEPT = range(1, 7)
 MSG_KEXINIT, MSG_NEWKEYS = range(20, 22)
-MSG_KEXGSS_INIT, MSG_KEXGSS_CONTINUE, MSG_KEXGSS_COMPLETE, MSG_KEXGSS_HOSTKEY, MSG_KEXGSS_ERROR = range(30, 35)
-MSG_KEXGSS_GROUPREQ, MSG_KEXGSS_GROUP = range(40, 42)
+
 MSG_USERAUTH_REQUEST, MSG_USERAUTH_FAILURE, MSG_USERAUTH_SUCCESS, \
         MSG_USERAUTH_BANNER = range(50, 54)
 MSG_USERAUTH_PK_OK = 60
@@ -47,11 +46,13 @@ MSG_NAMES = {
     MSG_SERVICE_ACCEPT: 'service-accept',
     MSG_KEXINIT: 'kexinit',
     MSG_NEWKEYS: 'newkeys',
-    MSG_KEXGSS_INIT: 'kexgss-init',
-    MSG_KEXGSS_CONTINUE: 'kexgss-continue',
-    MSG_KEXGSS_COMPLETE: 'kexgss-complete',
-    MSG_KEXGSS_HOSTKEY: 'kexgss-hostkey',
-    MSG_KEXGSS_ERROR: 'kexgss-error',
+    30: 'kex30',
+    31: 'kex31',
+    32: 'kex32',
+    33: 'kex33',
+    34: 'kex34',
+    40: 'kex40',
+    41: 'kex41',
     MSG_USERAUTH_REQUEST: 'userauth-request',
     MSG_USERAUTH_FAILURE: 'userauth-failure',
     MSG_USERAUTH_SUCCESS: 'userauth-success',

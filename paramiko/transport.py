@@ -32,12 +32,16 @@ import weakref
 import paramiko
 from paramiko import util
 from paramiko.auth_handler import AuthHandler
+from paramiko.ssh_gss import GSSAuth
 from paramiko.channel import Channel
 from paramiko.common import *
 from paramiko.compress import ZlibCompressor, ZlibDecompressor
 from paramiko.dsskey import DSSKey
 from paramiko.kex_gex import KexGex
 from paramiko.kex_group1 import KexGroup1
+from paramiko.kex_gss import KexGSSGex
+from paramiko.kex_gss import KexGSSGroup1
+from paramiko.kex_gss import NullHostKey
 from paramiko.message import Message
 from paramiko.packet import Packetizer, NeedRekeyException
 from paramiko.primes import ModulusPack
@@ -204,7 +208,7 @@ class Transport (threading.Thread):
         'arcfour128', 'arcfour256' )
     _preferred_macs = ( 'hmac-sha1', 'hmac-md5', 'hmac-sha1-96', 'hmac-md5-96' )
     _preferred_keys = ( 'ssh-rsa', 'ssh-dss', 'ecdsa-sha2-nistp256' )
-    _preferred_kex = ( 'diffie-hellman-group1-sha1', 'diffie-hellman-group-exchange-sha1' )
+    _preferred_kex = ('diffie-hellman-group1-sha1', 'diffie-hellman-group-exchange-sha1')
     _preferred_compression = ( 'none', )
 
     _cipher_info = {
@@ -229,11 +233,14 @@ class Transport (threading.Thread):
         'ssh-rsa': RSAKey,
         'ssh-dss': DSSKey,
         'ecdsa-sha2-nistp256': ECDSAKey,
+        '': NullHostKey
         }
 
     _kex_info = {
         'diffie-hellman-group1-sha1': KexGroup1,
         'diffie-hellman-group-exchange-sha1': KexGex,
+        'gss-group1-sha1-toWM5Slw5Ew8Mqkay+al2g==': KexGSSGroup1,
+        'gss-gex-sha1-toWM5Slw5Ew8Mqkay+al2g==': KexGSSGex,
         }
 
     _compression_info = {
@@ -248,7 +255,7 @@ class Transport (threading.Thread):
 
     _modulus_pack = None
 
-    def __init__(self, sock):
+    def __init__(self, sock, gss_kex=False, gss_deleg_creds=True):
         """
         Create a new SSH session over an existing socket, or socket-like
         object.  This only creates the Transport object; it doesn't begin the
@@ -283,9 +290,11 @@ class Transport (threading.Thread):
                 sock = (hl[0], 22)
             else:
                 sock = (hl[0], int(hl[1]))
+            self.hostname = hl[0]
         if type(sock) is tuple:
             # connect to the given (host, port)
             hostname, port = sock
+            self.hostname = hostname
             reason = 'No suitable address family'
             for (family, socktype, proto, canonname, sockaddr) in socket.getaddrinfo(hostname, port, socket.AF_UNSPEC, socket.SOCK_STREAM):
                 if socktype == socket.SOCK_STREAM:
@@ -326,6 +335,19 @@ class Transport (threading.Thread):
         self.session_id = None
         self.host_key_type = None
         self.host_key = None
+
+        # GSS-API / SSPI Key Exchange
+        self.use_gss_kex = gss_kex
+        self.kexgss_ctxt = None
+        self.gss_host = None
+        if gss_kex:
+            self.kexgss_ctxt = GSSAuth("gssapi-keyex", gss_deleg_creds)
+            self._preferred_kex = ('gss-gex-sha1-toWM5Slw5Ew8Mqkay+al2g==',
+                                   'gss-group1-sha1-toWM5Slw5Ew8Mqkay+al2g==',
+                                   'diffie-hellman-group-exchange-sha1',
+                                   'diffie-hellman-group1-sha1',)
+        else:
+            self.kexgss_ctxt = None
 
         # state used during negotiation
         self.kex_engine = None
@@ -415,6 +437,18 @@ class Transport (threading.Thread):
         @rtype: L{SecurityOptions}
         """
         return SecurityOptions(self)
+
+    def set_gss_host(self, gss_host):
+        '''
+        Setter for C{gss_host} if GSS-API Key Exchange is performed.
+
+        @param gss_host: The targets name in the kerberos database
+                         Default: The name of the host to connect to
+        @type gss_host: String
+        @rtype: Void
+        '''
+        # We need the FQDN to get this working with SSPI:
+        self.gss_host = socket.getfqdn(gss_host)
 
     def start_client(self, event=None):
         """
@@ -970,7 +1004,7 @@ class Transport (threading.Thread):
         return chan
 
     def connect(self, hostkey=None, username='', password=None, pkey=None,
-                gss_host=None, gss_auth=False, gss_deleg_creds=True):
+                gss_host=None, gss_auth=False, gss_kex=False, gss_deleg_creds=True):
         """
         Negotiate an SSH2 session, and optionally verify the server's host key
         and authenticate using a password, private key or GSSAPI.
@@ -1025,16 +1059,19 @@ class Transport (threading.Thread):
                 raise SSHException('Bad host key from server')
             self._log(DEBUG, 'Host key verified (%s)' % hostkey.get_name())
 
-        if (pkey is not None) or (password is not None) or gss_auth:
+        if (pkey is not None) or (password is not None) or gss_auth or gss_kex:
             if password is not None:
                 self._log(DEBUG, 'Attempting password auth...')
                 self.auth_password(username, password)
             elif pkey is not None:
                 self._log(DEBUG, 'Attempting public-key auth...')
                 self.auth_publickey(username, pkey)
-            else:
-                self._log(DEBUG, 'Attempting GSSAPI auth...')
+            elif gss_auth:
+                self._log(DEBUG, 'Attempting GSS-API auth... (gssapi-with-mic)')
                 self.auth_gssapi_with_mic(username, gss_host, gss_deleg_creds)
+            else:
+                self._log(DEBUG, 'Attempting GSS-API auth... (gssapi-keyex)')
+                self.auth_gssapi_keyex(username)
 
         return
 
@@ -1327,6 +1364,14 @@ class Transport (threading.Thread):
         @type gss_host: String
         @param gss_deleg_creds: Delegate credentials or not
         @type gss_deleg_creds: Boolean
+        @return: list of auth types permissible for the next stage of
+                 authentication (normally empty)
+        @rtype: list
+        @raise BadAuthenticationType: if gssapi-with-mic isn't
+            allowed by the server (and no event was passed in)
+        @raise AuthenticationException: if the authentication failed (and no
+            event was passed in)
+        @raise SSHException: if there was a network error
         '''
         if (not self.active) or (not self.initial_kex_done):
             # we should never try to authenticate unless we're on a secure link
@@ -1334,6 +1379,30 @@ class Transport (threading.Thread):
         my_event = threading.Event()
         self.auth_handler = AuthHandler(self)
         self.auth_handler.auth_gssapi_with_mic(username, gss_host, gss_deleg_creds, my_event)
+        return self.auth_handler.wait_for_response(my_event)
+
+    def auth_gssapi_keyex(self, username):
+        '''
+        Authenticate to the Server with GSS-API / SSPI if GSS-API Key Exchange
+        was the used key exchange method.
+
+        @param username: The username to authenticate as
+        @type username: String
+        @return: list of auth types permissible for the next stage of
+            authentication (normally empty)
+        @rtype: list
+        @raise BadAuthenticationType: if GSS-API Key Exchange was not performed
+                                      (and no event was passed in)
+        @raise AuthenticationException: if the authentication failed (and no
+            event was passed in)
+        @raise SSHException: if there was a network error
+        '''
+        if (not self.active) or (not self.initial_kex_done):
+            # we should never try to authenticate unless we're on a secure link
+            raise SSHException('No existing session')
+        my_event = threading.Event()
+        self.auth_handler = AuthHandler(self)
+        self.auth_handler.auth_gssapi_keyex(username, my_event)
         return self.auth_handler.wait_for_response(my_event)
 
     def set_log_channel(self, name):
@@ -1610,7 +1679,7 @@ class Transport (threading.Thread):
                         if ptype not in self._expected_packet:
                             raise SSHException('Expecting packet from %r, got %d' % (self._expected_packet, ptype))
                         self._expected_packet = tuple()
-                        if (ptype >= 30) and (ptype <= 39):
+                        if (ptype >= 30) and (ptype <= 41):
                             self.kex_engine.parse_next(ptype, m)
                             continue
 

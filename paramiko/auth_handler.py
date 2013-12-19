@@ -124,6 +124,16 @@ class AuthHandler (object):
             self._request_auth()
         finally:
             self.transport.lock.release()
+
+    def auth_gssapi_keyex(self, username, event):
+        self.transport.lock.acquire()
+        try:
+            self.auth_event = event
+            self.auth_method = 'gssapi-keyex'
+            self.username = username
+            self._request_auth()
+        finally:
+            self.transport.lock.release()
     
     def abort(self):
         if self.auth_event is not None:
@@ -240,24 +250,32 @@ class AuthHandler (object):
                     respond with this OID.
                     '''
                     mech = m.get_string()
+                    m = Message()
+                    m.add_byte(chr(MSG_USERAUTH_GSSAPI_TOKEN))
+                    m.add_string(sshgss.ssh_init_sec_context(self.gss_host,
+                                                             mech,
+                                                             self.username,))
+                    self.transport._send_message(m)
                     while True:
-                        m = Message()
-                        m.add_byte(chr(MSG_USERAUTH_GSSAPI_TOKEN))
-                        m.add_string(sshgss.ssh_init_sec_context(self.username,
-                                                                 self.gss_host,
-                                                                 mech))
-                        self.transport._send_message(m)
                         ptype, m = self.transport.packetizer.read_message()
                         if ptype == MSG_USERAUTH_GSSAPI_TOKEN:
                             srv_token = m.get_string()
-                            next_token = sshgss.ssh_init_sec_context(self.username,
-                                                                     self.gss_host,
-                                                                     mech, srv_token)
+                            next_token = sshgss.ssh_init_sec_context(self.gss_host,
+                                                                     mech,
+                                                                     self.username,
+                                                                     srv_token)
                             '''
                             After this step the GSSAPI should not return any token.
+                            If it does, we keep sending the token to the server unitl
+                            no more token is returned.
                             '''
                             if next_token is None:
                                 break
+                            else:
+                                m = Message()
+                                m.add_byte(chr(MSG_USERAUTH_GSSAPI_TOKEN))
+                                m.add_string(next_token)
+                                self.transport.send_message(m)
                     else:
                         raise SSHException("Received Package: %s" % MSG_NAMES[ptype])
                     m = Message()
@@ -273,6 +291,12 @@ class AuthHandler (object):
                     raise SSHException("Server returned an error token")
                 else:
                     raise SSHException("Received Package: %s" % MSG_NAMES[ptype])
+            elif self.auth_method == 'gssapi-keyex' and\
+                self.transport.use_gss_kex:
+                kexgss = self.transport.kexgss_ctxt
+                kexgss.set_username(self.username)
+                mic_token = kexgss.ssh_get_mic(self.transport.session_id)
+                m.add_string(mic_token)
             elif self.auth_method == 'none':
                 pass
             else:
@@ -341,7 +365,7 @@ class AuthHandler (object):
             return
         self.auth_username = username
         # check if GSSAPI authentication is enabled
-        gss_auth = self.transport.server_object.enable_auth_gssapi_with_mic()
+        gss_auth, gss_kex = self.transport.server_object.enable_gssapi()
 
         if method == 'none':
             result = self.transport.server_object.check_auth_none(username)
@@ -435,7 +459,7 @@ class AuthHandler (object):
             '''
             RFC 4462 says we are not required to implement GSS-API error
             messages.
-            @see: U{RFC 4462 Section 3.8<www.ietf.org/rfc/rfc4462.txt>}
+            @see: U{RFC 4462 Section 2 <www.ietf.org/rfc/rfc4462.txt>}    FIXME Section 2.1 or 2.2
             '''
             while True:
                 m = Message()
@@ -446,8 +470,8 @@ class AuthHandler (object):
                 client_token = m.get_string()
                 # use the client token as input to establish a secure context
                 token = sshgss.ssh_accept_sec_context(self.gss_host,
-                                                      self.auth_username,
-                                                      client_token)
+                                                      client_token,
+                                                      username)
                 if token is not None:
                     m = Message()
                     m.add_byte(chr(MSG_USERAUTH_GSSAPI_TOKEN))
@@ -459,8 +483,8 @@ class AuthHandler (object):
                     break
             mic_token = m.get_string()
             retval = sshgss.ssh_check_mic(mic_token,
-                                              self.transport.session_id,
-                                              self.auth_username)
+                                          self.transport.session_id,
+                                          username)
             if retval == 0:
                 '''
                  @todo: Implement client credential saving
@@ -469,7 +493,23 @@ class AuthHandler (object):
                 '''
                 result = AUTH_SUCCESSFUL
                 self.transport.server_object.check_auth_gssapi_with_mic(username,
-                                                                            result)
+                                                                        result)
+            else:
+                result = AUTH_FAILED
+        elif method == "gssapi-keyex" and gss_auth:
+            print "OK"
+            mic_token = m.get_string()
+            sshgss = self.transport.kexgss_ctxt
+            if sshgss is None:
+                result = AUTH_FAILED
+                self._send_auth_result(username, method, result)
+            retval = sshgss.ssh_check_mic(mic_token,
+                                          self.transport.session_id,
+                                          self.auth_username)
+            if retval == 0:
+                result = AUTH_SUCCESSFUL
+                self.transport.server_object.check_auth_gssapi_keyex(username,
+                                                                      result)
             else:
                 result = AUTH_FAILED
         else:

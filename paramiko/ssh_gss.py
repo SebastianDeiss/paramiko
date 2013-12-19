@@ -151,6 +151,17 @@ class _SSH_GSSAuth(object):
         if service.find("ssh-"):
             self._service = service
 
+    def set_username(self, username):
+        '''
+        Setter for C{username}. If GSS-API Key Exchange is performed, the
+        username is not set by C{ssh_init_sec_context}.
+
+        @param username: The name of the user who attempts to login
+        @type username: String
+        @rtype: Void
+        '''
+        self._username = username
+
     def ssh_gss_oids(self, mode="client"):
         '''
         This method returns a single OID, because we only support the
@@ -259,8 +270,8 @@ class _SSH_GSSAPI(_SSH_GSSAuth):
                                gssapi.C_INTEG_FLAG,
                                gssapi.C_MUTUAL_FLAG)
 
-    def ssh_init_sec_context(self, username, target, desired_mech,
-                             recv_token=None):
+    def ssh_init_sec_context(self, target, desired_mech=None,
+                             username=None, recv_token=None):
         '''
         Initialize a GSS-API context.
 
@@ -286,11 +297,14 @@ class _SSH_GSSAPI(_SSH_GSSAuth):
                                 gssapi.C_NT_HOSTBASED_SERVICE)
         ctx = gssapi.Context()
         ctx.flags = self._gss_flags
-        mech, __ = decoder.decode(desired_mech)
-        if mech.__str__() != self._krb5_mech:
-            raise SSHException("Unsupported mechanism OID.")
+        if desired_mech is None:
+            krb5_mech = gssapi.OID.mech_from_string(self._krb5_mech)
         else:
-            krb5_mech = gssapi.OID.mech_from_string(mech.__str__())
+            mech, __ = decoder.decode(desired_mech)
+            if mech.__str__() != self._krb5_mech:
+                raise SSHException("Unsupported mechanism OID.")
+            else:
+                krb5_mech = gssapi.OID.mech_from_string(self._krb5_mech)
         token = None
         if recv_token is None:
             self._gss_ctxt = gssapi.InitContext(peer_name=targ_name,
@@ -302,12 +316,14 @@ class _SSH_GSSAPI(_SSH_GSSAuth):
         self._gss_ctxt_status = self._gss_ctxt.established
         return token
 
-    def ssh_get_mic(self, session_id):
+    def ssh_get_mic(self, session_id, gss_kex=False):
         '''
         Create the MIC token for a SSH2 message.
 
         @param session_id: The SSH session ID
         @type session_id: String
+        @param gss_kex: Generate the MIC for GSS-API Key Exchange or not
+        @type gss_kex: Boolean
         @return: gssapi-with-mic:
                  Returns the MIC token from GSS-API for the message we created
                  with C{_ssh_build_mic}.
@@ -318,18 +334,18 @@ class _SSH_GSSAPI(_SSH_GSSAuth):
         @see: L{_ssh_build_mic}
         '''
         self._session_id = session_id
-        if self._auth_method == "gssapi-with-mic":
+        if not gss_kex:
             mic_field = self._ssh_build_mic(self._session_id,
                                             self._username,
                                             self._service,
                                             self._auth_method)
             mic_token = self._gss_ctxt.get_mic(mic_field)
         else:
-            # gssapi-keyex
-            mic_token = self._gss_ctxt.get_mic(self._session_id)
+            # for key exchange with gssapi-keyex
+            mic_token = self._gss_srv_ctxt.get_mic(self._session_id)
         return mic_token
 
-    def ssh_accept_sec_context(self, hostname, username, recv_token):
+    def ssh_accept_sec_context(self, hostname, recv_token, username=None):
         '''
         Accept a GSS-API context (server mode).
 
@@ -347,13 +363,15 @@ class _SSH_GSSAPI(_SSH_GSSAuth):
         # hostname and username are not required for GSSAPI, but for SSPI
         self._gss_host = hostname
         self._username = username
-        self._gss_srv_ctxt = gssapi.AcceptContext()
+        if self._gss_srv_ctxt is None:
+            self._gss_srv_ctxt = gssapi.AcceptContext()
         token = self._gss_srv_ctxt.step(recv_token)
+        self._gss_srv_ctxt_status = self._gss_srv_ctxt.established
         return token
 
-    def ssh_check_mic(self, mic_token, session_id, username):
+    def ssh_check_mic(self, mic_token, session_id, username=None):
         '''
-        Verify the MIC token for a SSH2 message (server mode).
+        Verify the MIC token for a SSH2 message.
 
         @param mic_token: The MIC token received from the client
         @type mic_token: String
@@ -366,7 +384,8 @@ class _SSH_GSSAPI(_SSH_GSSAuth):
         '''
         self._session_id = session_id
         self._username = username
-        if self._auth_method == "gssapi-with-mic":
+        if self._username is not None:
+            # server mode
             mic_field = self._ssh_build_mic(self._session_id,
                                         self._username,
                                         self._service,
@@ -374,9 +393,10 @@ class _SSH_GSSAPI(_SSH_GSSAuth):
             mic_status = self._gss_srv_ctxt.verify_mic(mic_field,
                                                        mic_token)
         else:
-            # gssapi-keyex
-            mic_status = self._gss_srv_ctxt.verify_mic(self._session_id,
-                                                       mic_token)
+            # for key exchange with gssapi-keyex
+            # client mode
+            mic_status = self._gss_ctxt.verify_mic(self._session_id,
+                                                   mic_token)
         return mic_status
 
     @property
@@ -429,8 +449,8 @@ class _SSH_SSPI(_SSH_GSSAuth):
             self._gss_flags = sspicon.ISC_REQ_INTEGRITY |\
                               sspicon.ISC_REQ_MUTUAL_AUTH
 
-    def ssh_init_sec_context(self, username, target, desired_mech,
-                             recv_token=None):
+    def ssh_init_sec_context(self, target, desired_mech=None,
+                             username=None, recv_token=None):
         '''
         Initialize a SSPI context.
 
@@ -453,9 +473,10 @@ class _SSH_SSPI(_SSH_GSSAuth):
         self._username = username
         self._gss_host = target
         targ_name = "host/" + self._gss_host
-        mech, __ = decoder.decode(desired_mech)
-        if mech.__str__() != self._krb5_mech:
-            raise SSHException("Unsupported mechanism OID.")
+        if desired_mech is not None:
+            mech, __ = decoder.decode(desired_mech)
+            if mech.__str__() != self._krb5_mech:
+                raise SSHException("Unsupported mechanism OID.")
         if recv_token is None:
             self._gss_ctxt = sspi.ClientAuth("Kerberos",
                                              scflags=self._gss_flags,
@@ -475,12 +496,14 @@ class _SSH_SSPI(_SSH_GSSAuth):
             '''
         return token
 
-    def ssh_get_mic(self, session_id):
+    def ssh_get_mic(self, session_id, gss_kex=False):
         '''
         Create the MIC token for a SSH2 message.
 
         @param session_id: The SSH session ID
         @type session_id: String
+        @param gss_kex: Generate the MIC for Key Exchange with SSPI or not
+        @type gss_kex: Boolean
         @return: gssapi-with-mic:
                  Returns the MIC token from SSPI for the message we created
                  with C{_ssh_build_mic}.
@@ -491,15 +514,15 @@ class _SSH_SSPI(_SSH_GSSAuth):
         @see: L{_ssh_build_mic}
         '''
         self._session_id = session_id
-        if self._auth_method == "gssapi-with-mic":
+        if not gss_kex:
             mic_field = self._ssh_build_mic(self._session_id,
                                             self._username,
                                             self._service,
                                             self._auth_method)
             mic_token = self._gss_ctxt.sign(mic_field)
         else:
-            # gssapi-keyex
-            mic_token = self._gss_ctxt.sign(self._session_id)
+            # for key exchange with gssapi-keyex
+            mic_token = self._gss_srv_ctxt.sign(self._session_id)
         return mic_token
 
     def ssh_accept_sec_context(self, hostname, username, recv_token):
@@ -522,14 +545,15 @@ class _SSH_SSPI(_SSH_GSSAuth):
         targ_name = "host/" + self._gss_host
         self._gss_srv_ctxt = sspi.ServerAuth("Kerberos", spn=targ_name)
         error, token = self._gss_srv_ctxt.authorize(recv_token)
+        token = token[0].Buffer
         if error == 0:
             self._gss_srv_ctxt_status = True
-        token = token[0].Buffer
+            token = None
         return token
 
-    def ssh_check_mic(self, mic_token, session_id, username):
+    def ssh_check_mic(self, mic_token, session_id, username=None):
         '''
-        Verify the MIC token for a SSH2 message (server mode).
+        Verify the MIC token for a SSH2 message.
 
         @param mic_token: The MIC token received from the client
         @type mic_token: String
@@ -542,7 +566,9 @@ class _SSH_SSPI(_SSH_GSSAuth):
         '''
         self._session_id = session_id
         self._username = username
-        if self._auth_method == "gssapi-with-mic":
+        mic_status = 1
+        if username is not None:
+            # server mode
             mic_field = self._ssh_build_mic(self._session_id,
                                             self._username,
                                             self._service,
@@ -550,14 +576,15 @@ class _SSH_SSPI(_SSH_GSSAuth):
             mic_status = self._gss_srv_ctxt.verify(mic_field,
                                                    mic_token)
         else:
-            # gssapi-keyex
-            mic_status = self._gss_srv_ctxt.verify(self._session_id,
-                                                   mic_token)
-            '''
-            The SSPI method C{verify} has no return value, so if no SSPI error
-            is return, set C{mic_status} to 0.
-            '''
-            mic_status = 0
+            # for key exchange with gssapi-keyex
+            # client mode
+            mic_status = self._gss_ctxt.verify(self._session_id,
+                                               mic_token)
+        '''
+        The SSPI method C{verify} has no return value, so if no SSPI error
+        is returned, set C{mic_status} to 0.
+        '''
+        mic_status = 0
         return mic_status
 
     @property
