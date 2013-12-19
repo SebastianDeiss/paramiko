@@ -37,6 +37,7 @@ U{pywin32 2.1.8 (Windows) <sourceforge.net/projects/pywin32/>}.
 @copyright: (C) 2013 U{science + computing ag
             <https://www.science-computing.de>}
 @license: GNU Lesser General Public License (LGPL)
+@see: L{kex_gss}
 
 Created on 07.11.2013
 '''
