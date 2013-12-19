@@ -1038,6 +1038,8 @@ class Transport (threading.Thread):
         @type gss_host: str
         @param gss_auth: Enable or Disable GSSAPI Authentication
         @type gss_auth: Boolean
+        @param gss_kex: Perform GSS-API Key Exchange and user authentication
+        @type gss_kex: Boolean
         @param gss_deleg_creds: Use delegated credentails with GSSAPI
         @type gss_deleg_cred: Boolean
 
@@ -1050,7 +1052,9 @@ class Transport (threading.Thread):
         self.start_client()
 
         # check host key if we were given one
-        if (hostkey is not None):
+        # If GSS-API Key Exchange was performed, we are not required to check
+        # the host key.
+        if (hostkey is not None) and not gss_kex:
             key = self.get_remote_server_key()
             if (key.get_name() != hostkey.get_name()) or (str(key) != str(hostkey)):
                 self._log(DEBUG, 'Bad host key from server')
