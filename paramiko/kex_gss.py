@@ -29,7 +29,7 @@ U{pyasn1 >= 0.1.7 <https://pypi.python.org/pypi/pyasn1>},
 U{python-gssapi >= 0.4.0 (Unix) <https://pypi.python.org/pypi/python-gssapi>},
 U{pywin32 2.1.8 (Windows) <sourceforge.net/projects/pywin32/>}.
 
-@summary: SSH2 GSS-API / SSPI key exchange module
+@summary: SSH2 GSS-API / SSPI Authenticated Diffie-Hellman Key Exchange Module
 @version: 0.1
 @author: Sebastian Deiss
 @contact: U{https://github.com/SebastianDeiss/paramiko/issues}
@@ -38,6 +38,7 @@ U{pywin32 2.1.8 (Windows) <sourceforge.net/projects/pywin32/>}.
 @copyright: (C) 2003-2007  Robey Pointer, (C) 2013 U{science + computing ag
             <https://www.science-computing.de>}
 @license: GNU Lesser General Public License (LGPL)
+@see: L{ssh_gss}
 
 Created on 12.12.2013
 '''
@@ -61,7 +62,8 @@ G = 2
 
 class KexGSSGroup1(object):
     '''
-    GSS-API / SSPI Key Exchange
+    GSS-API / SSPI Authenticated Diffie-Hellman Key Exchange
+    @see: U{RFC 4462 Section 2 <www.ietf.org/rfc/rfc4462.txt>}
     '''
     NAME = "gss-group1-sha1-toWM5Slw5Ew8Mqkay+al2g=="
 
@@ -74,6 +76,9 @@ class KexGSSGroup1(object):
         self.f = 0L
 
     def start_kex(self):
+        '''
+        Start the GSS-API / SSPI Authenticated Diffie-Hellman Key Exchange.
+        '''
         self._generate_x()
         if self.transport.server_mode:
             # compute f = g^x mod p, but don't send it yet
@@ -93,6 +98,14 @@ class KexGSSGroup1(object):
                                       MSG_KEXGSS_COMPLETE)
 
     def parse_next(self, ptype, m):
+        '''
+        Parse the next packet.
+
+        @param ptype: The type of the incomming packet
+        @type ptype: Char
+        @param m: The paket content
+        @type m: L{Message}
+        '''
         if self.transport.server_mode and (ptype == MSG_KEXGSS_INIT):
             return self._parse_kexgss_init(m)
         elif not self.transport.server_mode and (ptype == MSG_KEXGSS_HOSTKEY):
@@ -107,11 +120,13 @@ class KexGSSGroup1(object):
     # ##  internals...
 
     def _generate_x(self):
-        # generate an "x" (1 < x < q), where q is (p-1)/2.
-        # p is a 128-byte (1024-bit) number, where the first 64 bits are 1. 
-        # therefore q can be approximated as a 2^1023.  we drop the subset of
-        # potential x where the first 63 bits are 1, because some of those will be
-        # larger than q (but this is a tiny tiny subset of potential x).
+        '''
+        generate an "x" (1 < x < q), where q is (p-1)/2.
+        p is a 128-byte (1024-bit) number, where the first 64 bits are 1. 
+        therefore q can be approximated as a 2^1023.  we drop the subset of
+        potential x where the first 63 bits are 1, because some of those will be
+        larger than q (but this is a tiny tiny subset of potential x).
+        '''
         while 1:
             x_bytes = self.transport.rng.read(128)
             x_bytes = chr(ord(x_bytes[0]) & 0x7f) + x_bytes[1:]
@@ -121,6 +136,12 @@ class KexGSSGroup1(object):
         self.x = util.inflate_long(x_bytes)
 
     def _parse_kexgss_hostkey(self, m):
+        '''
+        Parse the SSH2_MSG_KEXGSS_HOSTKEY message (client mode).
+
+        @param m: The content of the SSH2_MSG_KEXGSS_HOSTKEY message
+        @type m: L{Message}
+        '''
         # client mode
         host_key = m.get_string()
         self.transport.host_key = host_key
@@ -130,6 +151,12 @@ class KexGSSGroup1(object):
                                       MSG_KEXGSS_COMPLETE)
 
     def _parse_kexgss_continue(self, m):
+        '''
+        Parse the SSH2_MSG_KEXGSS_CONTINUE message.
+
+        @param m: The content of the SSH2_MSG_KEXGSS_CONTINUE message
+        @type m: L{Message}
+        '''
         if not self.transport.server_mode:
             srv_token = m.get_string()
             m = Message()
@@ -143,6 +170,12 @@ class KexGSSGroup1(object):
             pass
 
     def _parse_kexgss_complete(self, m):
+        '''
+        Parse the SSH2_MSG_KEXGSS_COMPLETE message (client mode).
+
+        @param m: The content of the SSH2_MSG_KEXGSS_COMPLETE message
+        @type m: L{Message}
+        '''
         # client mode
         if self.transport.host_key is None:
             self.transport.host_key = NullHostKey()
@@ -179,6 +212,12 @@ class KexGSSGroup1(object):
         self.transport._activate_outbound()
 
     def _parse_kexgss_init(self, m):
+        '''
+        Parse the SSH2_MSG_KEXGSS_INIT message (server mode).
+
+        @param m: The content of the SSH2_MSG_KEXGSS_INIT message
+        @type m: L{Message}
+        '''
         # server mode
         client_token = m.get_string()
         self.e = m.get_mpint()
@@ -223,7 +262,8 @@ class KexGSSGroup1(object):
 
 class KexGSSGex(object):
     '''
-    GSS-API / SSPI Group Exchange
+    GSS-API / SSPI Authenticated Diffie-Hellman Group Exchange
+    @see: U{RFC 4462 Section 2 <www.ietf.org/rfc/rfc4462.txt>}
     '''
     NAME = "gss-gex-sha1-toWM5Slw5Ew8Mqkay+al2g=="
     min_bits = 1024
@@ -243,6 +283,9 @@ class KexGSSGex(object):
         self.old_style = False
 
     def start_kex(self):
+        '''
+        Start the GSS-API / SSPI Authenticated Diffie-Hellman Group Exchange
+        '''
         if self.transport.server_mode:
             self.transport._expect_packet(MSG_KEXGSS_GROUPREQ)
             return
@@ -259,6 +302,14 @@ class KexGSSGex(object):
         self.transport._expect_packet(MSG_KEXGSS_GROUP)
 
     def parse_next(self, ptype, m):
+        '''
+        Parse the next packet.
+
+        @param ptype: The type of the incomming packet
+        @type ptype: Char
+        @param m: The paket content
+        @type m: L{Message}
+        '''
         if ptype == MSG_KEXGSS_GROUPREQ:
             return self._parse_kexgss_groupreq(m)
         elif ptype == MSG_KEXGSS_GROUP:
@@ -276,7 +327,9 @@ class KexGSSGex(object):
     # ##  internals...
 
     def _generate_x(self):
-        # generate an "x" (1 < x < (p-1)/2).
+        '''
+        generate an "x" (1 < x < (p-1)/2).
+        '''
         q = (self.p - 1) // 2
         qnorm = util.deflate_long(q, 0)
         qhbyte = ord(qnorm[0])
@@ -294,6 +347,12 @@ class KexGSSGex(object):
         self.x = x
 
     def _parse_kexgss_groupreq(self, m):
+        '''
+        Parse the SSH2_MSG_KEXGSS_GROUPREQ message (server mode).
+
+        @param m: The content of the SSH2_MSG_KEXGSS_GROUPREQ message
+        @type m: L{Message}
+        '''
         minbits = m.get_int()
         preferredbits = m.get_int()
         maxbits = m.get_int()
@@ -327,6 +386,12 @@ class KexGSSGex(object):
         self.transport._expect_packet(MSG_KEXGSS_INIT)
 
     def _parse_kexgss_group(self, m):
+        '''
+        Parse the SSH2_MSG_KEXGSS_GROUP message (client mode).
+
+        @param m: The content of the SSH2_MSG_KEXGSS_GROUP message
+        @type m: L{Message}
+        '''
         self.p = m.get_mpint()
         self.g = m.get_mpint()
         # reject if p's bit length < 1024 or > 8192
@@ -346,6 +411,12 @@ class KexGSSGex(object):
                                       MSG_KEXGSS_COMPLETE)
 
     def _parse_kexgss_gex_init(self, m):
+        '''
+        Parse the SSH2_MSG_KEXGSS_INIT message (server mode).
+
+        @param m: The content of the SSH2_MSG_KEXGSS_INIT message
+        @type m: L{Message}
+        '''
         client_token = m.get_string()
         self.e = m.get_mpint()
         if (self.e < 1) or (self.e > self.p - 1):
@@ -394,6 +465,12 @@ class KexGSSGex(object):
                                           MSG_KEXGSS_COMPLETE)
 
     def _parse_kexgss_hostkey(self, m):
+        '''
+        Parse the SSH2_MSG_KEXGSS_HOSTKEY message (client mode).
+
+        @param m: The content of the SSH2_MSG_KEXGSS_HOSTKEY message
+        @type m: L{Message}
+        '''
         # client mode
         host_key = m.get_string()
         self.transport.host_key = host_key
@@ -403,6 +480,12 @@ class KexGSSGex(object):
                                       MSG_KEXGSS_COMPLETE)
 
     def _parse_kexgss_continue(self, m):
+        '''
+        Parse the SSH2_MSG_KEXGSS_CONTINUE message.
+
+        @param m: The content of the SSH2_MSG_KEXGSS_CONTINUE message
+        @type m: L{Message}
+        '''
         if not self.transport.server_mode:
             srv_token = m.get_string()
             m = Message()
@@ -416,7 +499,12 @@ class KexGSSGex(object):
             pass
 
     def _parse_kexgss_complete(self, m):
-        # client mode
+        '''
+        Parse the SSH2_MSG_KEXGSS_COMPLETE message (client mode).
+
+        @param m: The content of the SSH2_MSG_KEXGSS_COMPLETE message
+        @type m: L{Message}
+        '''
         if self.transport.host_key is None:
             self.transport.host_key = NullHostKey()
         self.f = m.get_mpint()
@@ -463,7 +551,7 @@ class KexGSSGex(object):
 
 class NullHostKey(object):
     '''
-    This class represents the null host key for GSS-API Key Exchange
+    This class represents the Null Host Key for GSS-API Key Exchange
     as defined in U{RFC 4462 Section 5 <www.ietf.org/rfc/rfc4462.txt>}
     '''
     def __init__(self):
