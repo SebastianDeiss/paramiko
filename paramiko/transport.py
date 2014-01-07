@@ -42,6 +42,7 @@ from paramiko.kex_group1 import KexGroup1
 from paramiko.kex_gss import KexGSSGex
 from paramiko.kex_gss import KexGSSGroup1
 from paramiko.kex_gss import NullHostKey
+from paramiko.kex_group14 import KexGroup14
 from paramiko.message import Message
 from paramiko.packet import Packetizer, NeedRekeyException
 from paramiko.primes import ModulusPack
@@ -208,7 +209,8 @@ class Transport (threading.Thread):
         'arcfour128', 'arcfour256' )
     _preferred_macs = ( 'hmac-sha1', 'hmac-md5', 'hmac-sha1-96', 'hmac-md5-96' )
     _preferred_keys = ( 'ssh-rsa', 'ssh-dss', 'ecdsa-sha2-nistp256' )
-    _preferred_kex = ('diffie-hellman-group1-sha1', 'diffie-hellman-group-exchange-sha1')
+    _preferred_kex = ( 'diffie-hellman-group1-sha1', 'diffie-hellman-group-exchange-sha1' )
+    _preferred_kex = ( 'diffie-hellman-group1-sha1', 'diffie-hellman-group14-sha1', 'diffie-hellman-group-exchange-sha1' )
     _preferred_compression = ( 'none', )
 
     _cipher_info = {
@@ -238,6 +240,7 @@ class Transport (threading.Thread):
 
     _kex_info = {
         'diffie-hellman-group1-sha1': KexGroup1,
+        'diffie-hellman-group14-sha1': KexGroup14,
         'diffie-hellman-group-exchange-sha1': KexGex,
         'gss-group1-sha1-toWM5Slw5Ew8Mqkay+al2g==': KexGSSGroup1,
         'gss-gex-sha1-toWM5Slw5Ew8Mqkay+al2g==': KexGSSGex,
