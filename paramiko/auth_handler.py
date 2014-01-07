@@ -479,7 +479,8 @@ class AuthHandler (object):
                 ptype, m = self.transport.packetizer.read_message()
                 if ptype == MSG_USERAUTH_GSSAPI_TOKEN:
                     client_token = m.get_string()
-                    # use the client token as input to establish a secure context
+                    # use the client token as input to establish a secure
+                    # context.
                     try:
                         token = sshgss.ssh_accept_sec_context(self.gss_host,
                                                               client_token,
