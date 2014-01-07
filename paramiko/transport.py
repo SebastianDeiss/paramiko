@@ -207,9 +207,7 @@ class Transport (threading.Thread):
         'arcfour128', 'arcfour256' )
     _preferred_macs = ( 'hmac-sha1', 'hmac-md5', 'hmac-sha1-96', 'hmac-md5-96' )
     _preferred_keys = ( 'ssh-rsa', 'ssh-dss', 'ecdsa-sha2-nistp256' )
-    _preferred_kex = ( 'diffie-hellman-group1-sha1', 'diffie-hellman-group14-sha1', 'diffie-hellman-group-exchange-sha1',
-                       'gss-gex-sha1-toWM5Slw5Ew8Mqkay+al2g==', 'gss-group1-sha1-toWM5Slw5Ew8Mqkay+al2g==',
-                       'gss-group14-sha1-toWM5Slw5Ew8Mqkay+al2g==')
+    _preferred_kex = ( 'diffie-hellman-group1-sha1', 'diffie-hellman-group14-sha1', 'diffie-hellman-group-exchange-sha1')
     _preferred_compression = ( 'none', )
 
     _cipher_info = {
@@ -347,8 +345,10 @@ class Transport (threading.Thread):
             self.kexgss_ctxt = GSSAuth("gssapi-keyex", gss_deleg_creds)
             self._preferred_kex = ('gss-gex-sha1-toWM5Slw5Ew8Mqkay+al2g==',
                                    'gss-group1-sha1-toWM5Slw5Ew8Mqkay+al2g==',
+                                   'gss-group14-sha1-toWM5Slw5Ew8Mqkay+al2g==',
                                    'diffie-hellman-group-exchange-sha1',
-                                   'diffie-hellman-group1-sha1',)
+                                   'diffie-hellman-group1-sha1',
+                                   'diffie-hellman-group14-sha1')
         else:
             self.kexgss_ctxt = None
 
