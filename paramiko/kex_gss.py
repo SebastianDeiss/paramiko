@@ -55,10 +55,6 @@ MSG_KEXGSS_INIT, MSG_KEXGSS_CONTINUE, MSG_KEXGSS_COMPLETE, MSG_KEXGSS_HOSTKEY,\
 MSG_KEXGSS_ERROR = range(30, 35)
 MSG_KEXGSS_GROUPREQ, MSG_KEXGSS_GROUP = range(40, 42)
 
-# draft-ietf-secsh-transport-09.txt, page 17
-P = 0xFFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFFL
-G = 2
-
 
 class KexGSSGroup1(object):
     '''
@@ -71,6 +67,9 @@ class KexGSSGroup1(object):
     will be terminated.
     @see: U{RFC 4462 Section 2.2 <www.ietf.org/rfc/rfc4462.txt>}
     '''
+    # draft-ietf-secsh-transport-09.txt, page 17
+    P = 0xFFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFFL
+    G = 2
     NAME = "gss-group1-sha1-toWM5Slw5Ew8Mqkay+al2g=="
 
     def __init__(self, transport):
@@ -88,11 +87,11 @@ class KexGSSGroup1(object):
         self._generate_x()
         if self.transport.server_mode:
             # compute f = g^x mod p, but don't send it yet
-            self.f = pow(G, self.x, P)
+            self.f = pow(self.G, self.x, self.P)
             self.transport._expect_packet(MSG_KEXGSS_INIT)
             return
         # compute e = g^x mod p (where g=2), and send it
-        self.e = pow(G, self.x, P)
+        self.e = pow(self.G, self.x, self.P)
         # Initialize GSS-API Key Exchange
         self.gss_host = self.transport.gss_host
         m = Message()
@@ -191,7 +190,7 @@ class KexGSSGroup1(object):
         if self.transport.host_key is None:
             self.transport.host_key = NullHostKey()
         self.f = m.get_mpint()
-        if (self.f < 1) or (self.f > P - 1):
+        if (self.f < 1) or (self.f > self.P - 1):
             raise SSHException('Server kex "f" is out of range')
         mic_token = m.get_string()
         '''
@@ -202,7 +201,7 @@ class KexGSSGroup1(object):
         srv_token = None
         if bool:
             srv_token = m.get_string()
-        K = pow(self.f, self.x, P)
+        K = pow(self.f, self.x, self.P)
         # okay, build up the hash H of (V_C || V_S || I_C || I_S || K_S || e || f || K)
         hm = Message()
         hm.add(self.transport.local_version, self.transport.remote_version,
@@ -232,9 +231,9 @@ class KexGSSGroup1(object):
         # server mode
         client_token = m.get_string()
         self.e = m.get_mpint()
-        if (self.e < 1) or (self.e > P - 1):
+        if (self.e < 1) or (self.e > self.P - 1):
             raise SSHException('Client kex "e" is out of range')
-        K = pow(self.e, self.x, P)
+        K = pow(self.e, self.x, self.P)
         self.transport.host_key = NullHostKey()
         key = self.transport.host_key.__str__()
         # okay, build up the hash H of (V_C || V_S || I_C || I_S || K_S || e || f || K)
@@ -291,6 +290,22 @@ class KexGSSGroup1(object):
                             \nError Message: %s\n") % (str(maj_status),
                                                        str(min_status),
                                                        err_msg)
+
+
+class KexGSSGroup14(KexGSSGroup1):
+    '''
+    GSS-API / SSPI Authenticated Diffie-Hellman Group14 Key Exchange
+    @see: U{RFC 4253 Section 6.5 <http://ietf.org/rfc/rfc4253.txt>}
+
+    RFC 4462 says we are not required to implement GSS-API error
+    messages.
+    If an error occurs an exception will be thrown and the connection
+    will be terminated.
+    @see: U{RFC 4462 Section 2.2 <www.ietf.org/rfc/rfc4462.txt>}
+    '''
+    P = 0xFFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3DC2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F83655D23DCA3AD961C62F356208552BB9ED529077096966D670C354E4ABC9804F1746C08CA18217C32905E462E36CE3BE39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9DE2BCBF6955817183995497CEA956AE515D2261898FA051015728E5A8AACAA68FFFFFFFFFFFFFFFFL
+    G = 2
+    NAME = "gss-group14-sha1-toWM5Slw5Ew8Mqkay+al2g=="
 
 
 class KexGSSGex(object):
