@@ -1002,8 +1002,6 @@ class Transport (threading.Thread):
                     chan = None
         finally:
             self.lock.release()
-        if chan is not None:
-            print "[Transport] Channel Accepted"
         return chan
 
     def connect(self, hostkey=None, username='', password=None, pkey=None,
