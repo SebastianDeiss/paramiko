@@ -349,8 +349,6 @@ class Transport (threading.Thread):
                                    'diffie-hellman-group-exchange-sha1',
                                    'diffie-hellman-group1-sha1',
                                    'diffie-hellman-group14-sha1')
-        else:
-            self.kexgss_ctxt = None
 
         # state used during negotiation
         self.kex_engine = None
