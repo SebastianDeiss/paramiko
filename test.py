@@ -47,6 +47,7 @@ from test_sftp_big import BigSFTPTest
 from test_client import SSHClientTest
 from test_gssapi import GSSAPITest
 from test_ssh_gss import GSSAuthTest
+from test_kex_gss import GSSKexTest
 
 default_host = 'localhost'
 default_user = os.environ.get('USER', 'nobody')
@@ -93,7 +94,12 @@ def main():
     parser.add_option('--test-gssauth', action='store_true', dest='test_gssauth', default=False,
                       help='Test GSS-API / SSPI authentication for SSHv2. To test this, you need kerberos a infrastructure.\
                       Note: Paramiko needs access to your krb5.keytab file. Make it readable for Paramiko or\
-                      copy the used key to another file and set this file to the KRB5_KTNAME environment variable.')
+                      copy the used key to another file and set the environment variable KRB5_KTNAME to this file.')
+    parser.add_option('--test-gssapi-keyex', action='store_true', dest='test_gsskex', default=False,
+                      help='Test GSS-API / SSPI authenticated iffie-Hellman Key Exchange and user\
+                      authentication. To test this, you need kerberos a infrastructure.\
+                      Note: Paramiko needs access to your krb5.keytab file. Make it readable for Paramiko or\
+                      copy the used key to another file and set the environment variable KRB5_KTNAME to this file.')
     parser.add_option('-R', action='store_false', dest='use_loopback_sftp', default=True,
                       help='perform SFTP tests against a remote server (by default, SFTP tests ' +
                       'are done through a loopback socket)')
@@ -115,7 +121,8 @@ def main():
                       help='The krb5 principal (your username) for GSS-API / SSPI authentication')
     parser.add_option('--targ_name', dest='targ_name', type='string',
                       metavar='<targ_name>',
-                      help='Target name for GSS-API / SSPI authentication')
+                      help='Target name for GSS-API / SSPI authentication.\
+                      This is the hosts name you are running the test on in the kerberos database.')
     parser.add_option('--server_mode', action='store_true', dest='server_mode', default=False,
                       help='Usage with --gssapi-test. Test the available GSS-API / SSPI server mode to.\
                       Note: you need to have access to the kerberos keytab file.')
@@ -157,6 +164,9 @@ def main():
     if options.test_gssauth:
         GSSAuthTest.init(options.krb5_principal, options.targ_name)
         suite.addTest(unittest.makeSuite(GSSAuthTest))
+    if options.test_gsskex:
+        GSSKexTest.init(options.krb5_principal, options.targ_name)
+        suite.addTest(unittest.makeSuite(GSSKexTest))
     verbosity = 1
     if options.verbose:
         verbosity = 2

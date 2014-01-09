@@ -20,18 +20,20 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA.
 
 '''
-Unit Tests for the GSS-API / SSPI SSHv2 Authentication (gssapi-with-mic)
+Unit Tests for the GSS-API / SSPI SSHv2 Diffie-Hellman Key Exchange and user
+authentication
 
 @author: Sebastian Deiss
 @contact: U{https://github.com/SebastianDeiss/paramiko/issues}
 @organization: science + computing ag
                (U{EMail<mailto:a.kruis@science-computing.de>})
-@copyright: (C) 2003-2007  Robey Pointer, (C) 2013 U{science + computing ag
+@copyright: (C) 2003-2009  Robey Pointer, (C) 2013 U{science + computing ag
             <https://www.science-computing.de>}
 @license: GNU Lesser General Public License (LGPL)
 
-Created on 04.12.2013
+Created on 08.01.2014
 '''
+
 
 import socket
 import threading
@@ -43,18 +45,17 @@ import paramiko
 class NullServer (paramiko.ServerInterface):
 
     def get_allowed_auths(self, username):
-        return 'gssapi-with-mic'
+        return 'gssapi-keyex'
 
-    def check_auth_gssapi_with_mic(self, username,
-                                   gss_authenticated=paramiko.AUTH_FAILED,
-                                   cc_file=None):
+    def check_auth_gssapi_keyex(self, username,
+                                gss_authenticated=paramiko.AUTH_FAILED,
+                                cc_file=None):
         if gss_authenticated == paramiko.AUTH_SUCCESSFUL:
             return paramiko.AUTH_SUCCESSFUL
         return paramiko.AUTH_FAILED
 
     def enable_auth_gssapi(self):
         UseGSSAPI = True
-        GSSAPICleanupCredentials = True
         return UseGSSAPI
 
     def check_channel_request(self, kind, chanid):
@@ -66,7 +67,7 @@ class NullServer (paramiko.ServerInterface):
         return True
 
 
-class GSSAuthTest(unittest.TestCase):
+class GSSKexTest(unittest.TestCase):
 
     def init(username, hostname):
         global krb5_principal, targ_name
@@ -93,16 +94,17 @@ class GSSAuthTest(unittest.TestCase):
 
     def _run(self):
         self.socks, addr = self.sockl.accept()
-        self.ts = paramiko.Transport(self.socks)
+        self.ts = paramiko.Transport(self.socks, True)
         host_key = paramiko.RSAKey.from_private_key_file('tests/test_rsa.key')
         self.ts.add_server_key(host_key)
         server = NullServer()
         self.ts.start_server(self.event, server)
 
-    def test_1_gss_auth(self):
+    def test_1_gsskex_and_auth(self):
         '''
-        Verify that Paramiko can handle SSHv2 GSS-API / SSPI authentication
-        (gssapi-with-mic) in client and server mode.
+        Verify that Paramiko can handle SSHv2 GSS-API / SSPI authenticated
+        Diffie-Hellman Key Exchange and user authentication with the GSS-API
+        context created during key exchange.
         '''
         host_key = paramiko.RSAKey.from_private_key_file('tests/test_rsa.key')
         public_host_key = paramiko.RSAKey(data=str(host_key))
@@ -111,7 +113,7 @@ class GSSAuthTest(unittest.TestCase):
         self.tc.get_host_keys().add('[%s]:%d' % (self.hostname, self.port),
                                     'ssh-rsa', public_host_key)
         self.tc.connect(self.hostname, self.port, username=self.username,
-                        gss_auth=True)
+                        gss_auth=True, gss_kex=True)
 
         self.event.wait(1.0)
         self.assert_(self.event.isSet())
