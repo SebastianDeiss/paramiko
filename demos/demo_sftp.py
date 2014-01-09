@@ -50,7 +50,7 @@ if len(hostname) == 0:
     sys.exit(1)
 if hostname.find(':') >= 0:
     hostname, portstr = hostname.split(':')
-    port = int(portstr)
+    Port = int(portstr)
 
 
 # get username
