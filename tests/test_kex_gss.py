@@ -97,6 +97,11 @@ class GSSKexTest(unittest.TestCase):
         self.ts = paramiko.Transport(self.socks, True)
         host_key = paramiko.RSAKey.from_private_key_file('tests/test_rsa.key')
         self.ts.add_server_key(host_key)
+        self.ts.set_gss_host(targ_name)
+        try:
+            self.ts.load_server_moduli()
+        except:
+            print '(Failed to load moduli -- gex will be unsupported.)'
         server = NullServer()
         self.ts.start_server(self.event, server)
 
