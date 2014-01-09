@@ -1823,7 +1823,6 @@ class Transport (threading.Thread):
                 # can't do group-exchange if we don't have a pack of potential primes
                 pkex = list(self.get_security_options().kex)
                 pkex.remove('diffie-hellman-group-exchange-sha1')
-                pkex.remove('gss-gex-sha1-toWM5Slw5Ew8Mqkay+al2g==')
                 self.get_security_options().kex = pkex
             available_server_keys = filter(self.server_key_dict.keys().__contains__,
                                            self._preferred_keys)
