@@ -39,8 +39,8 @@ from paramiko.compress import ZlibCompressor, ZlibDecompressor
 from paramiko.dsskey import DSSKey
 from paramiko.kex_gex import KexGex
 from paramiko.kex_group1 import KexGroup1
-from paramiko.kex_gss import KexGSSGex, KexGSSGroup1, KexGSSGroup14, NullHostKey
 from paramiko.kex_group14 import KexGroup14
+from paramiko.kex_gss import KexGSSGex, KexGSSGroup1, KexGSSGroup14, NullHostKey
 from paramiko.message import Message
 from paramiko.packet import Packetizer, NeedRekeyException
 from paramiko.primes import ModulusPack
@@ -1823,6 +1823,7 @@ class Transport (threading.Thread):
                 # can't do group-exchange if we don't have a pack of potential primes
                 pkex = list(self.get_security_options().kex)
                 pkex.remove('diffie-hellman-group-exchange-sha1')
+                pkex.remove('gss-gex-sha1-toWM5Slw5Ew8Mqkay+al2g==')
                 self.get_security_options().kex = pkex
             available_server_keys = filter(self.server_key_dict.keys().__contains__,
                                            self._preferred_keys)
