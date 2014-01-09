@@ -59,12 +59,12 @@ MSG_KEXGSS_GROUPREQ, MSG_KEXGSS_GROUP = range(40, 42)
 class KexGSSGroup1(object):
     '''
     GSS-API / SSPI Authenticated Diffie-Hellman Key Exchange
-    @see: U{RFC 4462 Section 2 <www.ietf.org/rfc/rfc4462.txt>}
+    as defined in U{RFC 4462 Section 2 <www.ietf.org/rfc/rfc4462.txt>}
 
-    RFC 4462 says we are not required to implement GSS-API error
-    messages.
-    If an error occurs an exception will be thrown and the connection
-    will be terminated.
+    @note: RFC 4462 says we are not required to implement GSS-API error
+           messages.
+           If an error occurs an exception will be thrown and the connection
+           will be terminated.
     @see: U{RFC 4462 Section 2.2 <www.ietf.org/rfc/rfc4462.txt>}
     '''
     # draft-ietf-secsh-transport-09.txt, page 17
@@ -295,12 +295,12 @@ class KexGSSGroup1(object):
 class KexGSSGroup14(KexGSSGroup1):
     '''
     GSS-API / SSPI Authenticated Diffie-Hellman Group14 Key Exchange
-    @see: U{RFC 4253 Section 6.5 <http://ietf.org/rfc/rfc4253.txt>}
+    as defined in U{RFC 4462 Section 2 <www.ietf.org/rfc/rfc4462.txt>}
 
-    RFC 4462 says we are not required to implement GSS-API error
-    messages.
-    If an error occurs an exception will be thrown and the connection
-    will be terminated.
+    @note: RFC 4462 says we are not required to implement GSS-API error
+           messages.
+           If an error occurs an exception will be thrown and the connection
+           will be terminated.
     @see: U{RFC 4462 Section 2.2 <www.ietf.org/rfc/rfc4462.txt>}
     '''
     P = 0xFFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3DC2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F83655D23DCA3AD961C62F356208552BB9ED529077096966D670C354E4ABC9804F1746C08CA18217C32905E462E36CE3BE39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9DE2BCBF6955817183995497CEA956AE515D2261898FA051015728E5A8AACAA68FFFFFFFFFFFFFFFFL
@@ -311,12 +311,12 @@ class KexGSSGroup14(KexGSSGroup1):
 class KexGSSGex(object):
     '''
     GSS-API / SSPI Authenticated Diffie-Hellman Group Exchange
-    @see: U{RFC 4462 Section 2 <www.ietf.org/rfc/rfc4462.txt>}
+    as defined in U{RFC 4462 Section 2 <www.ietf.org/rfc/rfc4462.txt>}
 
-    RFC 4462 says we are not required to implement GSS-API error
-    messages.
-    If an error occurs an exception will be thrown and the connection
-    will be terminated.
+    @note: RFC 4462 says we are not required to implement GSS-API error
+           messages.
+           If an error occurs an exception will be thrown and the connection
+           will be terminated.
     @see: U{RFC 4462 Section 2.2 <www.ietf.org/rfc/rfc4462.txt>}
     '''
     NAME = "gss-gex-sha1-toWM5Slw5Ew8Mqkay+al2g=="
