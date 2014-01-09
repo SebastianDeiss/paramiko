@@ -343,12 +343,12 @@ class Transport (threading.Thread):
         self.gss_host = None
         if gss_kex:
             self.kexgss_ctxt = GSSAuth("gssapi-keyex", gss_deleg_creds)
-            self._preferred_kex = ('gss-group1-sha1-toWM5Slw5Ew8Mqkay+al2g==',
+            self._preferred_kex = ('gss-gex-sha1-toWM5Slw5Ew8Mqkay+al2g==',
+                                   'gss-group1-sha1-toWM5Slw5Ew8Mqkay+al2g==',
                                    'gss-group14-sha1-toWM5Slw5Ew8Mqkay+al2g==',
-                                   'gss-gex-sha1-toWM5Slw5Ew8Mqkay+al2g==',
+                                   'diffie-hellman-group-exchange-sha1',
                                    'diffie-hellman-group1-sha1',
-                                   'diffie-hellman-group14-sha1',
-                                   'diffie-hellman-group-exchange-sha1')
+                                   'diffie-hellman-group14-sha1')
 
         # state used during negotiation
         self.kex_engine = None
