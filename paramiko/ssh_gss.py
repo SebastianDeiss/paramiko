@@ -1,4 +1,4 @@
-# Copyright (C) 2013 science + computing ag
+# Copyright (C) 2013-2014 science + computing ag
 # Author: Sebastian Deiss <sebastian.deiss@t-online.de>
 #
 #
