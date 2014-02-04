@@ -9,6 +9,17 @@ Issues noted as "'ssh' #NN" can be found at https://github.com/bitprophet/ssh/.
 
 Issues noted as "Fabric #NN" can be found at https://github.com/fabric/fabric/.
 
+
+Kerberos Support
+================
+
+Paramiko supports now GSS-API / SSPI authentication and key exchange.
+This feature requires the following Python packages:
+- pyasn1 0.1.7 or better
+- python-gssapi 0.4.0 or better (Unix)
+- pywin32 2.1.8 or better (Windows)
+
+
 Releases
 ========
 
