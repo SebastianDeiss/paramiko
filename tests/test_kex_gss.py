@@ -101,7 +101,7 @@ class GSSKexTest(unittest.TestCase):
         try:
             self.ts.load_server_moduli()
         except:
-            print '(Failed to load moduli -- gex will be unsupported.)'
+            print ('(Failed to load moduli -- gex will be unsupported.)')
         server = NullServer()
         self.ts.start_server(self.event, server)
 
@@ -112,7 +112,7 @@ class GSSKexTest(unittest.TestCase):
         context created during key exchange.
         """
         host_key = paramiko.RSAKey.from_private_key_file('tests/test_rsa.key')
-        public_host_key = paramiko.RSAKey(data=str(host_key))
+        public_host_key = paramiko.RSAKey(data=host_key.asbytes())
 
         self.tc = paramiko.SSHClient()
         self.tc.get_host_keys().add('[%s]:%d' % (self.hostname, self.port),

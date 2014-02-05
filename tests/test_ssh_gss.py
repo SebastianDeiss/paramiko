@@ -105,7 +105,7 @@ class GSSAuthTest(unittest.TestCase):
         (gssapi-with-mic) in client and server mode.
         """
         host_key = paramiko.RSAKey.from_private_key_file('tests/test_rsa.key')
-        public_host_key = paramiko.RSAKey(data=str(host_key))
+        public_host_key = paramiko.RSAKey(data=host_key.asbytes())
 
         self.tc = paramiko.SSHClient()
         self.tc.get_host_keys().add('[%s]:%d' % (self.hostname, self.port),

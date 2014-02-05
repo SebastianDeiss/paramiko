@@ -600,7 +600,8 @@ class KexGSSGex(object):
         hm.add_mpint(self.e)
         hm.add_mpint(self.f)
         hm.add_mpint(K)
-        self.transport._set_K_H(K, SHA.new(str(hm)).digest())
+        H = SHA.new(hm.asbytes()).digest()
+        self.transport._set_K_H(K, H)
         if srv_token is not None:
             self.kexgss.ssh_init_sec_context(target=self.gss_host,
                                              recv_token=srv_token)

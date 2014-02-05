@@ -229,12 +229,13 @@ class _SSH_GSSAuth(object):
                  byte      SSH_MSG_USERAUTH_REQUEST,
                  string    user-name,
                  string    service (ssh-connection),
-                 string    authentication-method (gssapi-with-mic or gss-keyex)
+                 string    authentication-method
+                           (gssapi-with-mic or gssapi-keyex)
         @rtype: Bytes
         """
         mic = self._make_uint32(len(session_id))
         mic += session_id
-        mic += bytes(MSG_USERAUTH_REQUEST)
+        mic += struct.pack('B', MSG_USERAUTH_REQUEST)
         mic += self._make_uint32(len(username))
         mic += str.encode(username)
         mic += self._make_uint32(len(service))
