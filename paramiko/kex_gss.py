@@ -250,7 +250,7 @@ class KexGSSGroup1(object):
         hm.add_mpint(self.e)
         hm.add_mpint(self.f)
         hm.add_mpint(K)
-        H = SHA.new(str(hm)).digest()
+        H = SHA.new(hm.asbytes()).digest()
         self.transport._set_K_H(K, H)
         srv_token = self.kexgss.ssh_accept_sec_context(self.gss_host,
                                                        client_token)
@@ -502,7 +502,7 @@ class KexGSSGex(object):
         hm.add_mpint(self.e)
         hm.add_mpint(self.f)
         hm.add_mpint(K)
-        H = SHA.new(str(hm)).digest()
+        H = SHA.new(hm.asbytes()).digest()
         self.transport._set_K_H(K, H)
         srv_token = self.kexgss.ssh_accept_sec_context(self.gss_host,
                                                        client_token)
