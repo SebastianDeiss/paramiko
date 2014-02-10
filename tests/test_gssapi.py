@@ -70,7 +70,7 @@ class GSSAPITest(unittest.TestCase):
 
         c_token = None
         gss_ctxt_status = False
-        mic_msg = "G'day Mate!"
+        mic_msg = b"G'day Mate!"
 
         if _API == "MIT":
             if server_mode:
