@@ -2,7 +2,7 @@
 Changelog
 =========
 
-* :feature:`250` GSS-API / SSPI authenticated Diffie-Hellman Key Exchange and user authentication
+* :feature:`250` GSS-API / SSPI authenticated Diffie-Hellman Key Exchange and user authentication.
 * :bug:`193` (and its attentant PRs :issue:`230` & :issue:`253`): Fix SSH agent
   problems present on Windows. Thanks to David Hobbs for initial report and to
   Aarni Koskela & Olle Lundberg for the patches.
