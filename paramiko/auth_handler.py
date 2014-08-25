@@ -634,3 +634,4 @@ class AuthHandler (object):
         MSG_USERAUTH_INFO_REQUEST: _parse_userauth_info_request,
         MSG_USERAUTH_INFO_RESPONSE: _parse_userauth_info_response,
     }
+

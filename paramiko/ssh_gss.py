@@ -598,3 +598,4 @@ class _SSH_SSPI(_SSH_GSSAuth):
                                     supported in server mode
         """
         raise NotImplementedError
+
